@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
-"""Render the poster for make.fun news-image-20261118 (Palette A).
+"""Render the poster for make.fun news-image-20261118 (Palette A), v2.
 
 Dev-time only: renders at 2048x2048 with PIL and real fonts, then
 downsamples to 1024x1024 with LANCZOS and palette-quantizes. The
 finished 1024 PNG is embedded as base64 in img_part1/2/3.py (the
 GitHub connector cannot push binaries); main.py decodes it at run
-time. See facts.md for the 38 stories and their sources.
+time. See facts.md for the 43 stories and their sources.
 
 Layout (all geometry in 1024-page units; S=2 render scale):
   masthead y0-120 navy, gold rule y120-124, region stripe y124-127
-  heroes  y128-334, three cards 324x206, each with a 90px drawn scene
-  mids    y334-690, four columns x three rows, cards 243x112
-  bottom  y694-984: hand-drawn world map (left) + 23 briefs (right)
-  footer  y986-1024 navy, two lines
+  summary  y132 one line on cream (poster-A style)
+  heroes   y150-356, three cards 324x206, each with a 90px drawn scene
+  mids     y362-702, five columns x two rows, cards 192x166,
+           3px regional top bar + 70px band (verified number or flags)
+           + label + headline + description
+  bottom   y708-984: hand-drawn world map (left) + 30 briefs (right)
+  footer   y986-1024 navy, two lines
 Palette A: cream #F7F1E3, navy #10213F, gold #D4A838 — the same
 palette as the 17 Nov v3a poster (rank 52, 98.73%).
 Every line of this file was written for this poster; no pasted art.
@@ -137,7 +140,7 @@ def fit_text(d, text, f_path, size, max_w, max_lines, min_size):
         lines = wrap(d, text, f, max_w)
         if len(lines) <= max_lines:
             return f, lines, size
-        size -= 1
+        size -= 0.5
     raise AssertionError(
         "fit_text overflow: %r needs %d lines at min size %d (max %d)"
         % (text, len(wrap(d, text, F(f_path, min_size), max_w)),
@@ -180,237 +183,6 @@ def chip(d, x, y, label, color, size=12):
     d.text(pt(x + pad_x, y + pad_y - 1), label, font=f, fill=PAPER)
     return w
 
-# ---------------------------------------------------------------- icons
-# Mid icons draw centred on (cx, cy) with half-size r (1024 units).
-# X(v)/Y(v) map a coordinate in units of r to render px. Flat vector
-# style, original drawings, no logos or real faces.
-
-def _xy(cx, cy, r):
-    def X(v):
-        return sc(cx + v * r)
-    def Y(v):
-        return sc(cy + v * r)
-    return X, Y
-
-
-def _lw(r, frac=0.10):
-    return max(2, sc(r * frac))
-
-
-def icon_mountain_flag(d, cx, cy, r, c):
-    X, Y = _xy(cx, cy, r)
-    d.polygon([(X(-0.9), Y(0.7)), (X(-0.05), Y(-0.7)), (X(0.9), Y(0.7))],
-              fill=c)
-    d.polygon([(X(-0.05), Y(-0.7)), (X(0.28), Y(-0.22)), (X(-0.32), Y(-0.22))],
-              fill=PAPER)
-    d.line([(X(0.05), Y(-0.7)), (X(0.05), Y(-1.0))], fill=c, width=_lw(r, 0.12))
-    d.polygon([(X(0.05), Y(-1.0)), (X(0.55), Y(-0.88)), (X(0.05), Y(-0.76))],
-              fill=(179, 58, 58))
-
-
-def icon_virus(d, cx, cy, r, c):
-    X, Y = _xy(cx, cy, r)
-    for a in range(0, 360, 45):
-        rad = math.radians(a)
-        x1, y1 = cx + math.cos(rad) * 0.55 * r, cy + math.sin(rad) * 0.55 * r
-        x2, y2 = cx + math.cos(rad) * 0.95 * r, cy + math.sin(rad) * 0.95 * r
-        d.line([sc(x1), sc(y1), sc(x2), sc(y2)], fill=c, width=_lw(r, 0.10))
-        d.ellipse([sc(x2 - 0.12 * r), sc(y2 - 0.12 * r),
-                   sc(x2 + 0.12 * r), sc(y2 + 0.12 * r)], fill=c)
-    d.ellipse([X(-0.55), Y(-0.55), X(0.55), Y(0.55)], fill=c)
-    d.ellipse([X(-0.2), Y(-0.25), X(0.05), Y(0)], fill=PAPER)
-    d.ellipse([X(0.1), Y(0.1), X(0.3), Y(0.3)], fill=PAPER)
-
-
-def icon_house_arrow(d, cx, cy, r, c):
-    X, Y = _xy(cx, cy, r)
-    d.polygon([(X(-0.75), Y(0.05)), (X(0), Y(-0.7)), (X(0.75), Y(0.05))],
-              fill=c)
-    d.rectangle([X(-0.55), Y(0.05), X(0.55), Y(0.7)], fill=c)
-    d.rectangle([X(-0.14), Y(0.25), X(0.14), Y(0.7)], fill=PAPER)
-    d.line([X(0.55), Y(-0.15), X(0.95), Y(-0.15)], fill=(179, 58, 58),
-           width=_lw(r, 0.14))
-    d.polygon([(X(0.95), Y(-0.15)), (X(0.7), Y(-0.4)), (X(0.7), Y(0.1))],
-              fill=(179, 58, 58))
-
-
-def icon_exchange(d, cx, cy, r, c):
-    X, Y = _xy(cx, cy, r)
-    d.ellipse([X(-0.8), Y(-0.45), X(-0.05), Y(0.3)], outline=c,
-              width=_lw(r, 0.14))
-    d.ellipse([X(0.05), Y(-0.3), X(0.8), Y(0.45)], outline=c,
-              width=_lw(r, 0.14))
-    d.polygon([(X(0.35), Y(-0.75)), (X(0.6), Y(-0.45)), (X(0.1), Y(-0.45))],
-              fill=c)
-    d.polygon([(X(-0.35), Y(0.75)), (X(-0.6), Y(0.45)), (X(-0.1), Y(0.45))],
-              fill=c)
-
-
-def icon_jet(d, cx, cy, r, c):
-    X, Y = _xy(cx, cy, r)
-    d.polygon([(X(-0.9), Y(0.1)), (X(0.1), Y(-0.35)), (X(0.95), Y(-0.1)),
-               (X(0.1), Y(0.35))], fill=c)
-    d.polygon([(X(-0.1), Y(-0.15)), (X(-0.25), Y(-0.75)), (X(0.15), Y(-0.2))],
-              fill=c)
-    d.polygon([(X(-0.1), Y(0.15)), (X(-0.25), Y(0.7)), (X(0.15), Y(0.2))],
-              fill=c)
-    for i in range(4):
-        x = cx - 0.9 * r + i * 0.28 * r
-        d.ellipse([sc(x), sc(cy + 0.75 * r), sc(x + 0.1 * r),
-                   sc(cy + 0.85 * r)], fill=c)
-
-
-def icon_bank(d, cx, cy, r, c):
-    X, Y = _xy(cx, cy, r)
-    d.polygon([(X(-0.9), Y(-0.15)), (X(0), Y(-0.85)), (X(0.9), Y(-0.15))],
-              fill=c)
-    for i in (-1, 0, 1):
-        x = cx + i * 0.55 * r
-        d.rectangle([sc(x - 0.09 * r), Y(-0.05), sc(x + 0.09 * r),
-                     Y(0.6)], fill=c)
-    d.rectangle([X(-0.95), Y(0.6), X(0.95), Y(0.78)], fill=c)
-    d.text((X(0.28), Y(-0.82)), "$", font=F(FONT_SANS_B, r * 0.55),
-           fill=GOLD)
-
-
-def icon_chip_up(d, cx, cy, r, c):
-    X, Y = _xy(cx, cy, r)
-    d.rectangle([X(-0.55), Y(-0.55), X(0.55), Y(0.55)], fill=c)
-    d.rectangle([X(-0.25), Y(-0.25), X(0.25), Y(0.25)], outline=PAPER,
-                width=_lw(r, 0.10))
-    for i in (-1, 0, 1):
-        d.line([sc(cx + i * 0.35 * r), Y(-0.55), sc(cx + i * 0.35 * r),
-                Y(-0.85)], fill=c, width=_lw(r, 0.12))
-        d.line([sc(cx + i * 0.35 * r), Y(0.55), sc(cx + i * 0.35 * r),
-                Y(0.85)], fill=c, width=_lw(r, 0.12))
-    d.polygon([(X(0.75), Y(-0.75)), (X(0.55), Y(-0.35)), (X(0.95), Y(-0.35))],
-              fill=(46, 125, 79))
-
-
-def icon_rocket(d, cx, cy, r, c):
-    X, Y = _xy(cx, cy, r)
-    d.polygon([(X(-0.3), Y(-0.95)), (X(0.3), Y(-0.95)), (X(0), Y(-0.35))],
-              fill=c)
-    d.rectangle([X(-0.3), Y(-0.35), X(0.3), Y(0.15)], fill=c)
-    d.ellipse([X(-0.13), Y(-0.75), X(0.13), Y(-0.45)], fill=PAPER)
-    d.polygon([(X(-0.3), Y(-0.1)), (X(-0.65), Y(0.35)), (X(-0.3), Y(0.35))],
-              fill=c)
-    d.polygon([(X(0.3), Y(-0.1)), (X(0.65), Y(0.35)), (X(0.3), Y(0.35))],
-              fill=c)
-    d.polygon([(X(-0.16), Y(0.15)), (X(0.16), Y(0.15)), (X(0), Y(0.75))],
-              fill=(217, 123, 41))
-    d.line([X(-0.8), Y(0.6), X(-0.5), Y(0.6)], fill=c, width=_lw(r, 0.08))
-    d.line([X(0.5), Y(0.6), X(0.8), Y(0.6)], fill=c, width=_lw(r, 0.08))
-
-
-def icon_ballot(d, cx, cy, r, c):
-    X, Y = _xy(cx, cy, r)
-    d.rectangle([X(-0.7), Y(-0.1), X(0.7), Y(0.75)], fill=c)
-    d.rectangle([X(-0.85), Y(-0.35), X(0.85), Y(-0.1)], fill=c)
-    d.rectangle([X(-0.18), Y(-0.55), X(0.18), Y(-0.35)], fill=NAVY)
-    d.line([X(-0.4), Y(0.3), X(-0.1), Y(0.55), X(0.5), Y(-0.05)],
-           fill=PAPER, width=_lw(r, 0.16), joint="curve")
-
-
-def icon_gavel(d, cx, cy, r, c):
-    # Gavel: diagonal handle, heads drawn as polygons perpendicular to
-    # the handle so the shape reads at small size.
-    X, Y = _xy(cx, cy, r)
-    d.line([X(-0.7), Y(0.7), X(0.7), Y(-0.7)], fill=c, width=_lw(r, 0.16))
-    # head centres on the handle axis; long axis perpendicular to it
-    import math as _m
-    for hx, hy in ((-0.42, 0.42), (0.42, -0.42)):
-        # unit vectors: along handle (1,-1)/sqrt2, across (-1,-1)/sqrt2
-        ax, ay = 0.7071, -0.7071
-        bx, by = -0.7071, -0.7071
-        L, Wd = 0.34 * r, 0.16 * r
-        px, py = cx + hx * r, cy + hy * r
-        pts = []
-        for sa, sb in ((1, 1), (1, -1), (-1, -1), (-1, 1)):
-            pts.append((sc(px + sa * L * ax + sb * Wd * bx),
-                        sc(py + sa * L * ay + sb * Wd * by)))
-        d.polygon(pts, fill=c)
-    d.rectangle([X(-0.9), Y(0.75), X(0.9), Y(0.92)], fill=c)
-
-
-def icon_syringe(d, cx, cy, r, c):
-    X, Y = _xy(cx, cy, r)
-    d.line([X(0.55), Y(-0.55), X(0.95), Y(-0.95)], fill=c, width=_lw(r, 0.10))
-    d.polygon([(X(-0.55), Y(0.55)), (X(-0.2), Y(0.2)), (X(0.35), Y(-0.35)),
-               (X(0.0), Y(-0.7))], fill=c)
-    d.rectangle([X(-0.45), Y(0.1), X(0.1), Y(0.65)], outline=c,
-                width=_lw(r, 0.10))
-    d.line([X(-0.7), Y(0.7), X(-0.95), Y(0.95)], fill=c, width=_lw(r, 0.12))
-    d.line([X(-0.85), Y(0.6), X(-0.6), Y(0.85)], fill=c, width=_lw(r, 0.12))
-
-
-def icon_globe_leaf(d, cx, cy, r, c):
-    X, Y = _xy(cx, cy, r)
-    d.ellipse([X(-0.75), Y(-0.75), X(0.75), Y(0.75)], fill=c)
-    d.arc([X(-0.75), Y(-0.75), X(0.75), Y(0.75)], 200, 340, fill=PAPER,
-          width=_lw(r, 0.10))
-    d.line([X(-0.75), Y(0), X(0.75), Y(0)], fill=PAPER, width=_lw(r, 0.08))
-    d.polygon([(X(0.15), Y(-0.95)), (X(0.75), Y(-0.75)), (X(0.55), Y(-0.25)),
-               (X(0.05), Y(-0.45))], fill=(46, 125, 79))
-
-
-def icon_bridge(d, cx, cy, r, c):
-    # Bridge deck in two segments with a gap, an arch under it and
-    # a falling span in the middle (the Kerch Bridge story).
-    X, Y = _xy(cx, cy, r)
-    d.rectangle([X(-0.9), Y(-0.15), X(-0.15), Y(0.05)], fill=c)
-    d.rectangle([X(0.15), Y(-0.15), X(0.9), Y(0.05)], fill=c)
-    d.line([X(-0.9), Y(0.05), X(-0.9), Y(0.5)], fill=c, width=_lw(r, 0.10))
-    d.line([X(0.9), Y(0.05), X(0.9), Y(0.5)], fill=c, width=_lw(r, 0.10))
-    d.arc([X(-0.7), Y(-0.55), X(0.7), Y(0.55)], 200, 340, fill=c,
-          width=_lw(r, 0.10))
-    d.polygon([(X(-0.08), Y(0.15)), (X(0.12), Y(0.25)), (X(0.08), Y(0.35)),
-               (X(-0.12), Y(0.25))], fill=c)
-    d.line([X(-0.75), Y(0.75), X(0.75), Y(0.75)], fill=c, width=_lw(r, 0.08))
-
-
-def icon_cyclone(d, cx, cy, r, c):
-    # Spiral arms: three arcs of decreasing radius around the centre.
-    X, Y = _xy(cx, cy, r)
-    for (a0, a1, rr) in ((0, 200, 0.85), (120, 320, 0.6), (240, 420, 0.35)):
-        d.arc([X(-rr), Y(-rr), X(rr), Y(rr)], a0, a1, fill=c,
-              width=_lw(r, 0.14))
-    d.ellipse([X(-0.14), Y(-0.14), X(0.14), Y(0.14)], fill=c)
-
-
-def icon_chart(d, cx, cy, r, c):
-    # Three rising bars with an upward arrow (inflation / markets).
-    X, Y = _xy(cx, cy, r)
-    d.rectangle([X(-0.85), Y(0.25), X(-0.45), Y(0.85)], fill=c)
-    d.rectangle([X(-0.2), Y(-0.1), X(0.2), Y(0.85)], fill=c)
-    d.rectangle([X(0.45), Y(-0.45), X(0.85), Y(0.85)], fill=c)
-    d.line([X(-0.85), Y(-0.35), X(0.0), Y(-0.65), X(0.85), Y(-0.95)],
-           fill=c, width=_lw(r, 0.12), joint="curve")
-    d.polygon([(X(0.85), Y(-0.95)), (X(0.55), Y(-0.95)), (X(0.85), Y(-0.65))],
-              fill=c)
-
-
-def icon_quake(d, cx, cy, r, c):
-    # Seismograph trace: a jagged line with one big spike.
-    X, Y = _xy(cx, cy, r)
-    d.line([X(-0.95), Y(0.1), X(-0.55), Y(0.1), X(-0.35), Y(-0.75),
-            X(-0.1), Y(0.7), X(0.15), Y(-0.3), X(0.35), Y(0.1),
-            X(0.95), Y(0.1)], fill=c, width=_lw(r, 0.12), joint="curve")
-
-
-def icon_factory(d, cx, cy, r, c):
-    # Factory: sawtooth roof, chimney with smoke, door.
-    X, Y = _xy(cx, cy, r)
-    d.polygon([(X(-0.9), Y(0.85)), (X(-0.9), Y(0.1)), (X(-0.5), Y(-0.35)),
-               (X(-0.1), Y(0.1)), (X(0.3), Y(-0.35)), (X(0.7), Y(0.1)),
-               (X(0.7), Y(0.85))], fill=c)
-    d.rectangle([X(0.55), Y(-0.85), X(0.75), Y(0.1)], fill=c)
-    for (sx, sy, sr) in ((0.65, -0.95, 0.10), (0.75, -1.05, 0.08)):
-        d.ellipse([X(sx - sr), Y(sy - sr), X(sx + sr), Y(sy + sr)],
-                  fill=(120, 124, 132))
-    d.rectangle([X(-0.15), Y(0.35), X(0.15), Y(0.85)], fill=PAPER)
-
-
 # ---------------------------------------------------------------- hero art
 # Each scene draws inside the art box (ax, ay, aw, ah) in 1024 units.
 # The region chip is drawn by the caller, overlaid inside the art.
@@ -452,52 +224,66 @@ def scene_bridge(d, ax, ay, aw, ah):
                fill=(255, 255, 255), width=sc(2))
 
 
-def scene_gulf(d, ax, ay, aw, ah):
-    d.rectangle(box(ax, ay, ax + aw, ay + ah),
-                fill=tint(REGIONS["Middle East"], 0.88))
-    d.rectangle(box(ax, ay + ah - 30, ax + aw, ay + ah), fill=(96, 150, 170))
-    # tanker, centre-left
-    hull_y = ay + 44
-    d.polygon([pt(ax + 18, hull_y), pt(ax + 168, hull_y), pt(ax + 148, hull_y + 20),
-               pt(ax + 36, hull_y + 20)], fill=(140, 40, 40))
-    d.rectangle(box(ax + 44, hull_y - 18, ax + 92, hull_y), fill=PAPER)
-    d.rectangle(box(ax + 100, hull_y - 12, ax + 128, hull_y), fill=NAVY)
-    d.rectangle(box(ax + 136, hull_y - 22, ax + 144, hull_y - 12), fill=NAVY)
-    # fire on the deck
-    d.polygon([pt(ax + 100, hull_y - 12), pt(ax + 114, hull_y - 42),
-               pt(ax + 128, hull_y - 12)], fill=(217, 123, 41))
-    d.polygon([pt(ax + 110, hull_y - 12), pt(ax + 120, hull_y - 34),
-               pt(ax + 130, hull_y - 12)], fill=GOLD)
-    # place labels: Kuwait (top left), Qeshm (over the tanker)
+def scene_gulf_map(d, ax, ay, aw, ah):
+    """Simplified geographic map of the Gulf: Iran on top, the Arabian
+    Peninsula below, the sea channel between them. Dashed red lines
+    trace the drone paths from Iran toward Kuwait and Bahrain; a
+    tanker burns in the Strait of Hormuz at the right edge."""
+    d.rectangle(box(ax, ay, ax + aw, ay + ah), fill=(205, 225, 236))
+    # Iran (top): a coastline that dips down toward the Gulf
+    d.polygon([pt(ax, ay), pt(ax + aw, ay), pt(ax + aw, ay + 18),
+               pt(ax + 268, ay + 26), pt(ax + 210, ay + 30),
+               pt(ax + 150, ay + 24), pt(ax + 90, ay + 30),
+               pt(ax + 40, ay + 22), pt(ax, ay + 26)],
+              fill=(228, 210, 175))
+    # Arabia (bottom): a coastline that rises toward the Gulf
+    d.polygon([pt(ax, ay + ah), pt(ax + aw, ay + ah),
+               pt(ax + aw, ay + ah - 20), pt(ax + 262, ay + ah - 26),
+               pt(ax + 200, ay + ah - 22), pt(ax + 150, ay + ah - 30),
+               pt(ax + 96, ay + ah - 24), pt(ax + 46, ay + ah - 30),
+               pt(ax, ay + ah - 22)],
+              fill=(228, 210, 175))
+    # Bahrain: a small island in the channel
+    d.ellipse(box(ax + 118, ay + 44, ax + 130, ay + 54),
+              fill=(228, 210, 175), outline=NAVY, width=sc(1))
+    # Qeshm: a long island in the strait, right side
+    d.polygon([pt(ax + 252, ay + 48), pt(ax + 292, ay + 42),
+               pt(ax + 296, ay + 52), pt(ax + 254, ay + 58)],
+              fill=(228, 210, 175), outline=NAVY, width=sc(1))
+    # dashed drone paths from Iran toward Kuwait and Bahrain
+    def dashed(x0, y0, x1, y1):
+        steps = 14
+        for i in range(steps):
+            if i % 2:
+                continue
+            t0, t1 = i / steps, (i + 1) / steps
+            d.line([pt(ax + x0 + (x1 - x0) * t0, ay + y0 + (y1 - y0) * t0),
+                    pt(ax + x0 + (x1 - x0) * t1, ay + y0 + (y1 - y0) * t1)],
+                   fill=(179, 58, 58), width=sc(2))
+    dashed(120, 26, 46, 44)   # Iran -> Kuwait
+    dashed(180, 28, 126, 44)  # Iran -> Bahrain
+    # interception starbursts at Kuwait and Bahrain
+    for (sx, sy) in ((46, 46), (124, 48)):
+        for (dx, dy) in ((0, -7), (5, -5), (7, 0), (5, 5), (0, 7),
+                         (-5, 5), (-7, 0), (-5, -5)):
+            d.line([pt(ax + sx, ay + sy), pt(ax + sx + dx, ay + sy + dy)],
+                   fill=(179, 58, 58), width=sc(2))
+    # tanker in the strait, hull + fire
+    d.polygon([pt(ax + 232, ay + 62), pt(ax + 282, ay + 62),
+               pt(ax + 274, ay + 72), pt(ax + 240, ay + 72)],
+              fill=(140, 40, 40))
+    d.rectangle(box(ax + 246, ay + 54, ax + 262, ay + 62), fill=PAPER)
+    d.polygon([pt(ax + 250, ay + 54), pt(ax + 258, ay + 40),
+               pt(ax + 266, ay + 54)], fill=(217, 123, 41))
+    # labels (IRAN sits right of the region chip, not under it)
     f_lab = F(FONT_SANS_B, 10)
-    d.text(pt(ax + 10, ay + 6), "KUWAIT", font=f_lab, fill=NAVY)
-    d.text(pt(ax + 148, ay + 28), "QESHM", font=f_lab, fill=NAVY)
-    # drones in the sky (the story: drones fired at the radar),
-    # drawn as arrows flying right, towards the radar dish
-    for (dx, dy) in ((186, 16), (224, 26), (262, 14)):
-        d.ellipse(box(ax + dx - 4, ay + dy - 4, ax + dx + 4, ay + dy + 4),
-                  fill=NAVY)
-        d.line([pt(ax + dx - 10, ay + dy), pt(ax + dx + 10, ay + dy)],
-               fill=NAVY, width=sc(2))
-        d.polygon([pt(ax + dx + 10, ay + dy - 4), pt(ax + dx + 18, ay + dy),
-                   pt(ax + dx + 10, ay + dy + 4)], fill=NAVY)
-    # mine splashes, right side
-    for (sx, sy, sr) in ((210, 52, 10), (238, 62, 8), (262, 46, 7)):
-        d.ellipse(box(ax + sx - sr, ay + sy - sr, ax + sx + sr, ay + sy + sr),
-                  outline=PAPER, width=sc(3))
-        d.line([pt(ax + sx, ay + sy - sr - 8), pt(ax + sx, ay + sy - sr)],
-               fill=PAPER, width=sc(3))
-    # radar dish on a small base, far right
-    d.rectangle(box(ax + aw - 30, ay + ah - 30, ax + aw - 8, ay + ah - 22),
-                fill=(222, 205, 170))
-    d.line([pt(ax + aw - 19, ay + ah - 22), pt(ax + aw - 19, ay + ah - 44)],
-           fill=NAVY, width=sc(4))
-    d.pieslice(box(ax + aw - 34, ay + ah - 58, ax + aw - 4, ay + ah - 28),
-               180, 360, fill=NAVY)
-    # waves
-    for yy in (ay + ah - 20, ay + ah - 12):
-        d.line([pt(ax + 12, yy), pt(ax + aw - 44, yy)], fill=(255, 255, 255),
-               width=sc(2))
+    d.text(pt(ax + 118, ay + 4), "IRAN", font=f_lab, fill=NAVY)
+    d.text(pt(ax + 8, ay + 34), "KUWAIT", font=f_lab, fill=NAVY)
+    d.text(pt(ax + 136, ay + 40), "BAHRAIN", font=f_lab, fill=NAVY)
+    d.text(pt(ax + 8, ay + ah - 14), "SAUDI ARABIA", font=f_lab, fill=NAVY)
+    d.text(pt(ax + 232, ay + ah - 14), "UAE", font=f_lab, fill=NAVY)
+    d.text(pt(ax + 262, ay + 8), "HORMUZ", font=f_lab, fill=NAVY)
+    d.text(pt(ax + 246, ay + 30), "QESHM", font=f_lab, fill=NAVY)
 
 
 def scene_ballot(d, ax, ay, aw, ah):
@@ -527,25 +313,36 @@ def scene_ballot(d, ax, ay, aw, ah):
     d.text(pt(ax + 233, ay + 50), "44", font=f_n, fill=NAVY)
 
 
-def scene_summit(d, ax, ay, aw, ah):
-    d.rectangle(box(ax, ay, ax + aw, ay + ah), fill=tint(REGIONS["Asia"], 0.88))
-    # podium steps
-    d.rectangle(box(ax + 40, ay + ah - 34, ax + aw - 40, ay + ah - 22),
-                fill=NAVY_SOFT)
-    d.rectangle(box(ax + 70, ay + ah - 46, ax + aw - 70, ay + ah - 34),
-                fill=NAVY)
-    d.rectangle(box(ax + 108, ay + ah - 58, ax + aw - 108, ay + ah - 46),
-                fill=NAVY)
-    # three flag poles with simplified flags
-    poles = [ax + 78, ax + 154, ax + 230]
-    flags = ["us", "cn", "ru"]
-    for px, kind in zip(poles, flags):
-        d.line([pt(px, ay + 8), pt(px, ay + ah - 46)], fill=NAVY, width=sc(3))
-        fx, fy, fw, fh = px + 2, ay + 10, 34, 22
+# ---------------------------------------------------------------- mid bands
+# A mid band is the top 70 px of a mid card: pastel tint, a numbered
+# badge upper-left, and either one big verified number with a caption
+# or (APEC) three mini flags. The band is drawn by the caller; these
+# helpers draw the content inside it.
+
+def band_number(d, x, y, w, number, caption, color):
+    """Big verified number centred in the band, caption beneath it."""
+    f_num = F(FONT_SANS_B, 26)
+    nw = text_w(d, number, f_num)
+    d.text((sc(x + (w - nw) / 2), sc(y + 16)), number, font=f_num,
+           fill=color)
+    f_cap = F(FONT_SANS_B, 9)
+    cw = text_w(d, caption, f_cap)
+    d.text((sc(x + (w - cw) / 2), sc(y + 50)), caption, font=f_cap,
+           fill=GREY)
+
+
+def band_flags(d, x, y, w):
+    """Three mini flags (US, China, Russia) in a row, centred."""
+    fw, fh, gap = 34, 22, 6
+    total = fw * 3 + gap * 2
+    fx0 = x + (w - total) / 2
+    fy = y + 14
+    for i, kind in enumerate(("us", "cn", "ru")):
+        fx = fx0 + i * (fw + gap)
         if kind == "us":
-            for i in range(7):
-                d.rectangle(box(fx, fy + i * 3, fx + fw, fy + i * 3 + 3),
-                            fill=(179, 58, 58) if i % 2 == 0 else PAPER)
+            for j in range(7):
+                d.rectangle(box(fx, fy + j * 3, fx + fw, fy + j * 3 + 3),
+                            fill=(179, 58, 58) if j % 2 == 0 else PAPER)
             d.rectangle(box(fx, fy, fx + 14, fy + 10), fill=(46, 111, 176))
             for dx in (3, 8):
                 for dy in (3, 7):
@@ -563,16 +360,16 @@ def scene_summit(d, ax, ay, aw, ah):
                         fill=(46, 111, 176))
             d.rectangle(box(fx, fy + 15, fx + fw, fy + fh),
                         fill=(179, 58, 58))
-    # banner strip with the date line
-    d.rectangle(box(ax, ay + ah - 16, ax + aw, ay + ah), fill=NAVY)
-    f_ban = F(FONT_SANS_B, 11)
-    draw_centered(d, ax + aw / 2, ay + ah - 14, "SHENZHEN - THU 19 NOV",
-                  f_ban, PAPER)
+        d.rectangle(box(fx, fy, fx + fw, fy + fh), outline=NAVY, width=1)
+    f_cap = F(FONT_SANS_B, 9)
+    cap = "SHENZHEN · THU 19 NOV"
+    cw = text_w(d, cap, f_cap)
+    d.text((sc(x + (w - cw) / 2), sc(y + 50)), cap, font=f_cap, fill=GREY)
 
 # ---------------------------------------------------------------- world map
 # Hand-authored simplified continent polygons, equirectangular.
-# Panel (1024 units): x16..x362, y694..y924 (346x230).
-MAP_X, MAP_Y, MAP_W, MAP_H = 16, 694, 346, 230
+# Panel (1024 units): x16..x362, y708..y938 (346x230).
+MAP_X, MAP_Y, MAP_W, MAP_H = 16, 708, 346, 230
 
 CONTINENTS = [
     ("Americas", [(-168, 66), (-158, 71), (-140, 70), (-128, 71),
@@ -665,37 +462,41 @@ def map_xy(lon, lat):
 
 
 # Numbered dots: (story no., lon, lat, dx, dy) — dx/dy are small manual
-# nudges (map px) so crowded dots do not touch. Dots 5 and 9 are both
-# in the San Francisco Bay Area (Nvidia, Anthropic) and are nudged
-# apart; dots 13 and 15 are both in Nigeria (Abuja, Lagos) and are
-# nudged apart the same way.
+# nudges (map px) so crowded dots do not touch. The Europe / Middle
+# East cluster (Kyiv, Kerch, Gaza, Antalya, Stockholm, London) is
+# nudged apart; a hairline joins each nudged dot to its true spot.
 DOTS_NUM = [
-    (1, 50.5, 26.2, 0, 0), (2, 114.1, 22.5, 0, 0), (3, -150.0, 64.0, 0, 0),
-    (4, 36.5, 45.3, 0, 0), (5, -121.9, 37.4, 6, 6), (6, -162.0, -10.5, 0, 0),
-    (7, 29.5, 1.0, 0, 0), (8, 44.2, 15.3, 0, 0), (9, -122.4, 37.8, -6, -6),
-    (10, -0.1, 51.5, 0, 0), (11, -46.0, -4.5, 0, 0),
-    (12, 145.8, -5.2, 0, 0), (13, 7.5, 9.1, 0, -7), (14, 96.0, 21.0, 0, 0),
-    (15, 3.4, 6.5, 0, 7),
+    (1, 50.5, 26.2, 0, 0), (2, 36.5, 45.3, 8, 4), (3, -150.0, 64.0, 0, 0),
+    (4, 114.1, 22.5, 0, 0), (5, -121.9, 37.4, 6, 6),
+    (6, 30.5, 50.4, -10, -8), (7, 34.5, 31.5, -2, 10),
+    (8, 30.7, 36.9, -12, -2), (9, 174.8, -36.9, -8, 0),
+    (10, 18.1, 59.3, -8, -8), (11, 149.1, -35.3, 0, 0),
+    (12, 90.4, 23.8, 0, 0), (13, -0.1, 51.5, 0, 0),
 ]
-# Brief dots: (lon, lat, dx, dy, region).
+# Brief dots: (lon, lat, dx, dy, region). San Francisco carries two
+# briefs (data-centre ban, Anthropic) and Nigeria three (football,
+# graft, Ebola contacts); each is nudged apart.
 DOTS_BRIEF = [
     (26.1, 44.4, 0, 0, "Europe"), (-77.0, -10.0, 0, 0, "Americas"),
-    (-122.4, 37.8, 14, 14, "Americas"), (-77.0, 39.0, -8, -8, "Global"),
-    (-150.0, -15.0, 0, 0, "Oceania"), (72.8, 19.1, 0, 0, "Asia"),
-    (35.0, -6.0, 0, 0, "Africa"), (28.2, -25.7, 0, 0, "Africa"),
-    (80.3, 15.9, 0, 0, "Asia"), (-77.0, 38.9, 8, 8, "Americas"),
-    (7.5, 9.1, 7, 7, "Africa"), (15.3, -4.3, 0, 0, "Africa"),
+    (-122.4, 37.8, 14, 14, "Americas"), (-74.0, 40.7, 0, 0, "Global"),
+    (72.8, 19.1, 0, 0, "Asia"), (3.4, 6.5, 0, 7, "Africa"),
+    (28.2, -25.7, 0, 0, "Africa"), (-77.0, 38.9, 8, 8, "Americas"),
     (45.0, 12.8, 8, 0, "Middle East"), (56.0, 26.0, 6, -6, "Middle East"),
-    (125.8, 39.0, 0, 0, "Asia"), (116.4, 39.9, 0, 0, "Asia"),
-    (121.0, 14.6, 0, 0, "Asia"), (22.7, 48.4, 0, 0, "Europe"),
-    (37.6, 55.8, 0, 0, "Europe"), (36.5, 45.3, -8, 8, "Europe"),
-    (12.5, 41.9, 0, 0, "Global"), (28.2, -25.7, 8, 0, "Africa"),
-    (145.0, 14.0, 0, 0, "Oceania"),
+    (116.4, 39.9, 0, 0, "Asia"), (121.0, 14.6, 0, 0, "Asia"),
+    (22.7, 48.4, 0, 0, "Europe"), (37.6, 55.8, 0, 0, "Europe"),
+    (145.0, 14.0, 0, 0, "Oceania"), (80.3, 15.9, 0, 0, "Asia"),
+    (-160.0, -10.5, 0, 0, "Oceania"), (44.2, 15.3, 0, 0, "Middle East"),
+    (-122.4, 37.8, -10, -10, "Americas"), (29.5, 1.0, 0, 0, "Africa"),
+    (-46.0, -4.5, 0, 0, "Americas"), (145.8, -5.2, 0, 0, "Oceania"),
+    (7.5, 9.1, 0, -7, "Africa"), (96.0, 21.0, 8, 8, "Asia"),
+    (7.0, 4.8, 0, 0, "Africa"), (30.4, 13.2, 0, 0, "Africa"),
+    (-0.1, 51.5, 10, 10, "Europe"), (4.35, 50.85, 0, 14, "Europe"),
+    (-75.7, 45.4, -10, -6, "Americas"), (7.5, 9.1, 7, 7, "Africa"),
 ]
-NUM_REGION = {1: "Middle East", 2: "Asia", 3: "Americas", 4: "Europe",
-              5: "Americas", 6: "Oceania", 7: "Africa", 8: "Middle East",
-              9: "Americas", 10: "Europe", 11: "Americas", 12: "Oceania",
-              13: "Africa", 14: "Asia", 15: "Africa"}
+NUM_REGION = {1: "Middle East", 2: "Europe", 3: "Americas", 4: "Asia",
+              5: "Americas", 6: "Europe", 7: "Middle East", 8: "Global",
+              9: "Global", 10: "Europe", 11: "Oceania", 12: "Asia",
+              13: "Europe"}
 
 
 def check_dots():
@@ -725,11 +526,15 @@ def draw_map(d):
         d.polygon(pts, fill=tint(REGIONS[region], 0.55),
                   outline=REGIONS[region])
     f_cap = F(FONT_SANS_B, 11)
-    d.text(pt(MAP_X + 8, MAP_Y + 6), "WHERE IT HAPPENED — 1–15",
+    d.text(pt(MAP_X + 8, MAP_Y + 6), "WHERE IT HAPPENED — 1–13",
            font=f_cap, fill=NAVY)
+    hair = (150, 140, 120)
     for n, lon, lat, dx, dy in DOTS_NUM:
-        x, y = map_xy(lon, lat)
-        x, y = x + dx, y + dy
+        x0, y0 = map_xy(lon, lat)
+        x, y = x0 + dx, y0 + dy
+        if math.hypot(dx, dy) >= 8:
+            d.line([pt(x, y), pt(x0, y0)], fill=hair, width=sc(1))
+            d.ellipse(box(x0 - 2, y0 - 2, x0 + 2, y0 + 2), fill=hair)
         col = REGIONS[NUM_REGION[n]]
         d.ellipse(box(x - 5, y - 5, x + 5, y + 5), fill=col, outline=PAPER,
                   width=1)
@@ -738,13 +543,17 @@ def draw_map(d):
         d.text((sc(x) - d.textlength(num, font=f_n) / 2, sc(y - 4.5)), num,
                font=f_n, fill=PAPER)
     for lon, lat, dx, dy, region in DOTS_BRIEF:
-        x, y = map_xy(lon, lat)
-        d.ellipse(box(x + dx - 2, y + dy - 2, x + dx + 2, y + dy + 2),
+        x0, y0 = map_xy(lon, lat)
+        x, y = x0 + dx, y0 + dy
+        if math.hypot(dx, dy) >= 8:
+            d.line([pt(x, y), pt(x0, y0)], fill=hair, width=sc(1))
+            d.ellipse(box(x0 - 2, y0 - 2, x0 + 2, y0 + 2), fill=hair)
+        d.ellipse(box(x - 2, y - 2, x + 2, y + 2),
                   fill=REGIONS[region])
 
 
 def draw_legend(d, x, y):
-    """Two rows of region swatches under the map."""
+    """Two rows of region swatches under the map, plus one note line."""
     f_l = F(FONT_SANS, 11)
     rows = [["Europe", "Middle East", "Asia", "Africa"],
             ["Americas", "Oceania", "Global"]]
@@ -755,48 +564,61 @@ def draw_legend(d, x, y):
             d.rectangle(box(xx, yy, xx + 8, yy + 8), fill=REGIONS[region])
             d.text(pt(xx + 11, yy - 1), region, font=f_l, fill=INK)
             xx += 11 + text_w(d, region, f_l) + 14
-        yy += 20
-    d.text(pt(x, yy - 2), "Numbers 1–15: heroes and mid stories. "
-           "Dots: briefs.", font=F(FONT_SANS, 10), fill=GREY)
+        yy += 16
+    d.text(pt(x, yy), "1–13: heroes and mids · dots: briefs · "
+           "hairlines = true spots.", font=F(FONT_SANS, 10), fill=GREY)
 
 # ---------------------------------------------------------------- content
 # Headlines were kept short on purpose so they fit the required sizes.
 # Full wording and sources: see facts.md.
 
+SUMMARY = ("Strikes in the Gulf and on the Kerch bridge, a three-way "
+           "summit in Shenzhen and a chipmaker's record quarter — the "
+           "day in 43 stories.")
+
 HEROES = [
-    ("Middle East", scene_gulf, "Iran hits US bases in Kuwait, Bahrain",
-     "Kuwait says drones downed; Bahrain hit third time this week"),
-    ("Asia", scene_summit, "Xi, Putin meet as APEC opens",
-     "Trump flies in tonight; trilateral summit Thursday"),
+    ("Middle East", scene_gulf_map, "Iran hits US bases in Kuwait, Bahrain",
+     "Kuwait says drones downed; ADNOC ship hit, 1 missing, 11 hurt"),
+    ("Europe", scene_bridge, "Kerch Bridge span falls into the sea",
+     "227m road arch collapses; rail partly back"),
     ("Americas", scene_ballot, "Peltola flips Alaska Senate seat",
      "Democrats reach 56 seats; first Alaska Native senator"),
 ]
 
+# Mid tuple: (region, category, headline, subline, band kind,
+#              band number, band caption). Band kind "num" draws a big
+# verified number; "flags" draws the three summit flags (APEC).
 MIDS = [
-    ("Europe", icon_bridge, "Kerch Bridge crippled, road link cut",
-     "227m arch in strait; rail partly back"),
-    ("Americas", icon_chip_up, "Nvidia shares jump after record results",
-     "Revenue $115.8bn beats forecasts; shares up"),
-    ("Oceania", icon_cyclone, "Cyclone Xavier slams Cook Islands",
-     "Category 5, gusts to 315 km/h"),
-    ("Africa", icon_virus, "Ebola passes 11,000 cases in DR Congo",
-     "UN: children hit hardest; not under control"),
-    ("Middle East", icon_rocket, "Coalition hits 60 Houthi targets",
-     "Coalition says 60 hit; Riyadh missile downed"),
-    ("Americas", icon_exchange, "Anthropic to price $1.4tn IPO today",
-     "Pricing today; Nasdaq debut Thursday as ANT"),
-    ("Europe", icon_chart, "UK inflation hits 3.6%, one-year high",
-     "ONS: October CPI 3.6%; petrol dearest since 2022"),
-    ("Americas", icon_globe_leaf, "Uncontacted Awá emerge from Amazon",
-     "About 20 emerge in Maranhão; first in decades"),
-    ("Oceania", icon_quake, "Quake shakes Papua New Guinea",
-     "Strong quake off Madang; no tsunami warning"),
-    ("Africa", icon_bank, "Nigeria loses $125bn a year to graft",
-     "AU body: $125bn lost; $80bn to corruption"),
-    ("Asia", icon_gavel, "World Court to rule on Myanmar Thursday",
-     "First final genocide ruling in a decade"),
-    ("Africa", icon_factory, "Dangote refinery IPO grows to $2.1bn",
-     "Orders near 4.4tn naira; retail in full"),
+    ("Asia", "DIPLOMACY", "Xi, Putin meet as APEC opens",
+     "Trump flies in tonight; trilateral summit Thursday",
+     "flags", "", ""),
+    ("Americas", "BUSINESS", "Nvidia shares jump after record results",
+     "Revenue $115.8bn beats forecasts; shares up",
+     "num", "$115.8B", "Q3 REVENUE, +103%"),
+    ("Europe", "UKRAINE WAR", "Russia fires 141 drones at Ukraine",
+     "Air force: 126 downed; 5 killed, 15 injured in a day",
+     "num", "141", "DRONES OVERNIGHT"),
+    ("Middle East", "GAZA", "Board of Peace: Gaza truce at risk",
+     "First report to UN: Israel blocked civil administration",
+     "num", "1,650", "KILLED SINCE TRUCE"),
+    ("Global", "CLIMATE", "COP31: 75 back '35x35' power goal",
+     "Electricity 35% of energy by 2035; draft deal",
+     "num", "75", "COUNTRIES BACK 35x35"),
+    ("Global", "CULTURE", "Grand Theft Auto VI goes on sale",
+     "Midnight launch in New Zealand; 15m+ pre-orders",
+     "num", "$1.54bn", "PRE-RELEASE SALES"),
+    ("Europe", "HEALTH", "ECDC: antibiotic resistance surges",
+     "K. pneumoniae infections up 72% since 2019",
+     "num", "72%", "RISE SINCE 2019"),
+    ("Oceania", "DIPLOMACY", "Australia sanctions Daniella Weiss",
+     "Settler leader among 3 people, 4 groups sanctioned",
+     "num", "7", "SANCTIONED"),
+    ("Asia", "LABOUR", "Bangladesh strike shuts 500",
+     "Tk 30,000 wage sought; highway blocked",
+     "num", "500", "FACTORIES SHUT"),
+    ("Europe", "ECONOMY", "UK inflation hits 3.6%",
+     "ONS: October CPI 3.6%, a one-year high",
+     "num", "3.6%", "OCTOBER CPI"),
 ]
 
 BRIEFS = [
@@ -804,37 +626,44 @@ BRIEFS = [
     ("Peru:", "strong quake off the coast", "Americas"),
     ("San Francisco:", "data-centre ban extended", "Americas"),
     ("Leukaemia vaccine", "cuts death risk", "Global"),
-    ("Deep-sea miner's", "claims denied", "Oceania"),
     ("Cricket:", "IPL retention lists filed", "Asia"),
     ("Nigeria held", "0-0 by Tanzania", "Africa"),
     ("South Africa", "summons Nigerian envoy", "Africa"),
-    ("Cyclone Akvan", "nears Andhra coast", "Asia"),
     ("Fed October", "minutes due today", "Americas"),
-    ("Nigeria:", "Ebola contacts clear quarantine", "Africa"),
-    ("DRC, Rwanda", "row over Francophonie", "Africa"),
     ("Houthi missiles", "target Aden airport", "Middle East"),
     ("Three US carriers", "now in the Gulf", "Middle East"),
     ("Trump hints", "at Kim meeting in China", "Asia"),
-    ("Xi meets", "Canada's Carney at APEC", "Asia"),
     ("Protests greet", "Trump in Manila", "Asia"),
     ("Hungary halts", "rail link to Ukraine", "Europe"),
-    ("Russia says", "1,441 drones fired", "Europe"),
     ("Kremlin vows", "to rebuild bridge", "Europe"),
-    ("Sun records", "M1.1 solar flare", "Global"),
-    ("Ramaphosa", "challenges Musk to give back", "Africa"),
     ("Quake south of", "Mariana Islands", "Oceania"),
+    ("Cyclone Akvan:", "Odisha to evacuate 204,070", "Asia"),
+    ("Cyclone Xavier", "reaches Category 5", "Oceania"),
+    ("Coalition hits", "60 Houthi targets", "Middle East"),
+    ("Anthropic to price", "$1.4tn IPO tonight", "Americas"),
+    ("Ebola still out", "of control, WHO warns", "Africa"),
+    ("Awá emerge", "from Amazon", "Americas"),
+    ("Quake shakes", "Papua New Guinea", "Oceania"),
+    ("Nigeria loses", "$125bn a year to graft", "Africa"),
+    ("World Court to rule", "on Myanmar Thursday", "Asia"),
+    ("Dangote refinery IPO", "grows to $2.1bn", "Africa"),
+    ("Amnesty:", "RSF drones killed 37 in El Obeid", "Africa"),
+    ("Britain sanctions", "eight settler-builders", "Europe"),
+    ("Brussels proposes", "€45bn Ukraine loan", "Europe"),
+    ("Carney:", "China trade no worry for Trump", "Americas"),
+    ("Nigeria:", "Ebola contacts clear quarantine", "Africa"),
 ]
 
 FOOTER_L1 = ("Every story happened or was first reported on Wednesday "
              "18 November 2026 (any time zone).")
-FOOTER_L2 = ("Disputed claims are attributed. Sources: AP, Reuters, AFP, "
-             "BBC, Al Jazeera, UN News. Original drawings.")
+FOOTER_L2 = ("Disputed claims are attributed. Sources: Reuters, AP, AFP, "
+             "BBC, Al Jazeera, UN News and others. Original drawings.")
 
 
 def build():
     check_dots()
     total = len(HEROES) + len(MIDS) + len(BRIEFS)
-    assert total == 38, "story count is %d, expected 38" % total
+    assert total == 43, "story count is %d, expected 43" % total
 
     img = Image.new("RGB", (W, H), CREAM)
     d = ImageDraw.Draw(img)
@@ -870,9 +699,15 @@ def build():
         d.rectangle(box(16 + i * seg, 124, 16 + (i + 1) * seg, 127),
                     fill=REGIONS[region])
 
-    # ---- heroes: 3 cards 324x206 at y128
+    # ---- one-line summary under the masthead, on cream
+    f_sum = F(FONT_SANS, 13)
+    sw = text_w(d, SUMMARY, f_sum)
+    assert sw <= 976, "summary too wide (%.0f px)" % sw
+    d.text(pt(512 - sw / 2, 132), SUMMARY, font=f_sum, fill=GREY)
+
+    # ---- heroes: 3 cards 324x206 at y150
     for i, (region, scene, headline, subline) in enumerate(HEROES):
-        x, y = 16 + i * 334, 128
+        x, y = 16 + i * 334, 150
         rounded_rect(d, [x, y, x + 324, y + 206], radius=12, fill=PAPER,
                      outline=NAVY, width=2)
         scene(d, x + 8, y + 8, 308, 90)
@@ -889,51 +724,67 @@ def build():
             yy += int(ssize * 1.15)
         assert yy <= y + 202, "hero %d text overflows card (%d)" % (i + 1, yy - y)
 
-    # ---- mids: 4 cols x 3 rows, cards 243x112
-    col_x = [16, 266, 515, 765]
-    for i, (region, icon, headline, subline) in enumerate(MIDS):
-        col_i, row_i = i % 4, i // 4
-        x, y = col_x[col_i], 334 + row_i * 122
-        rounded_rect(d, [x, y, x + 243, y + 112], radius=10, fill=PAPER,
-                     outline=BORDER, width=1)
+    # ---- mids: 5 cols x 2 rows, cards 192x166 at y362 / y536
+    col_x = [16, 216, 416, 616, 816]
+    for i, (region, category, headline, subline, kind, number,
+            caption) in enumerate(MIDS):
+        col_i, row_i = i % 5, i // 5
+        x, y = col_x[col_i], 362 + row_i * 174
         col = REGIONS[region]
-        icon(d, x + 37, y + 68, 26, col)
-        d.ellipse(box(x + 6, y + 6, x + 28, y + 28), fill=NAVY)
-        nf = F(FONT_SANS_B, 13)
+        rounded_rect(d, [x, y, x + 192, y + 166], radius=10, fill=PAPER,
+                     outline=BORDER, width=1)
+        # 3 px regional top bar, then the 70 px band
+        d.rectangle(box(x + 2, y + 2, x + 190, y + 5), fill=col)
+        d.rectangle(box(x + 2, y + 5, x + 190, y + 73),
+                    fill=tint(col, 0.88))
+        # numbered badge, upper-left inside the band
+        bx, by = x + 16, y + 19
+        d.ellipse(box(bx - 10, by - 10, bx + 10, by + 10), fill=NAVY)
+        nf = F(FONT_SANS_B, 11)
         num = str(i + 4)
-        d.text((sc(x + 17) - d.textlength(num, font=nf) / 2, sc(y + 9)), num,
+        d.text((sc(bx) - d.textlength(num, font=nf) / 2, sc(by - 6)), num,
                font=nf, fill=PAPER)
-        d.rectangle(box(x + 12, y + 100, x + 62, y + 104), fill=col)
-        hf, hlines, hsize = fit_text(d, headline, FONT_SANS_B, 18, 167, 3, 17)
-        sf, slines, ssize = fit_text(d, subline, FONT_SANS, 12.5, 167, 2, 12)
-        block_h = (len(hlines) * hsize * 1.18 + 4
-                   + len(slines) * ssize * 1.25)
-        yy = y + (112 - block_h) / 2
-        assert yy >= y + 4, "mid %d text block too tall" % (i + 4)
+        if kind == "flags":
+            band_flags(d, x + 2, y + 5, 188)
+        else:
+            band_number(d, x + 2, y + 5, 188, number, caption, CHIPS[region])
+        # label, headline, description
+        lf = F(FONT_SANS_B, 11)
+        label = "%s · %s" % (region.upper(), category)
+        lw = text_w(d, label, lf)
+        assert lw <= 176, "mid %d label too wide (%.0f)" % (i + 4, lw)
+        d.text(pt(x + 8, y + 78), label, font=lf, fill=col)
+        hf, hlines, hsize = fit_text(d, headline, FONT_SERIF_B, 17, 176, 2, 16)
+        sf, slines, ssize = fit_text(d, subline, FONT_SANS, 12.5, 176, 2, 12)
+        block_h = (len(hlines) * hsize * 1.12 + 3
+                   + len(slines) * ssize * 1.18)
+        yy = y + 92
+        assert yy + block_h <= y + 164, \
+            "mid %d text block too tall (%.0f)" % (i + 4, block_h)
         for ln in hlines:
-            d.text(pt(x + 70, yy), ln, font=hf, fill=NAVY)
-            yy += hsize * 1.18
-        yy += 4
+            d.text(pt(x + 8, yy), ln, font=hf, fill=NAVY)
+            yy += hsize * 1.12
+        yy += 3
         for ln in slines:
-            d.text(pt(x + 70, yy), ln, font=sf, fill=GREY)
-            yy += ssize * 1.25
+            d.text(pt(x + 8, yy), ln, font=sf, fill=GREY)
+            yy += ssize * 1.18
 
     # ---- bottom: map left, briefs right
     draw_map(d)
-    draw_legend(d, 16, 930)
+    draw_legend(d, 16, 942)
     f_bh = F(FONT_SANS_B, 16)
-    letterspaced(d, 378, 694, "ALSO ON WEDNESDAY 18 NOVEMBER", f_bh, NAVY,
+    letterspaced(d, 378, 708, "ALSO ON WEDNESDAY 18 NOVEMBER", f_bh, NAVY,
                  spacing=2)
-    d.line([pt(378, 716), pt(1008, 716)], fill=GOLD, width=sc(2))
-    f_lead = F(FONT_SANS_B, 14)
-    f_rest = F(FONT_SANS, 14)
+    d.line([pt(378, 730), pt(1008, 730)], fill=GOLD, width=sc(2))
+    f_lead = F(FONT_SANS_B, 13)
+    f_rest = F(FONT_SANS, 13)
     for i, (lead, rest, _reg) in enumerate(BRIEFS):
-        col_i, row_i = (0, i) if i < 12 else (1, i - 12)
+        col_i, row_i = (0, i) if i < 15 else (1, i - 15)
         x = 378 + col_i * 319
-        y = 724 + row_i * 22
+        y = 738 + row_i * 16
         w = text_w(d, lead, f_lead) + text_w(d, " " + rest, f_rest)
         assert w <= 311, "brief %d too wide (%.0f px): %s %s" \
-            % (i + 16, w, lead, rest)
+            % (i + 14, w, lead, rest)
         d.text(pt(x, y), lead, font=f_lead, fill=NAVY)
         d.text(pt(x + text_w(d, lead, f_lead), y), " " + rest,
                font=f_rest, fill=INK)
@@ -963,6 +814,10 @@ def qa_crops():
     qdir.mkdir(exist_ok=True)
     im = Image.open(os.path.join(HERE, "entry-1024.png")).convert("RGB")
     im.crop((0, 0, 1024, 120)).save(qdir / "top120.png")
+    im.crop((0, 120, 1024, 360)).save(qdir / "heroes.png")
+    im.crop((0, 360, 1024, 705)).save(qdir / "mids.png")
+    im.crop((0, 705, 370, 990)).save(qdir / "map.png")
+    im.crop((370, 705, 1024, 990)).save(qdir / "briefs.png")
     im.crop((0, 0, 512, 512)).save(qdir / "q_tl.png")
     im.crop((512, 0, 1024, 512)).save(qdir / "q_tr.png")
     im.crop((0, 512, 512, 1024)).save(qdir / "q_bl.png")
